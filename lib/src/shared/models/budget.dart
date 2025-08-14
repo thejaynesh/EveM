@@ -1,4 +1,3 @@
-
 class Budget {
   final String id;
   final String eventId;

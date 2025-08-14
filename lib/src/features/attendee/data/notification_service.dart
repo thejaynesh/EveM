@@ -15,10 +15,10 @@ class NotificationService {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return Notification.fromMap(doc.data(), id: doc.id);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            return Notification.fromMap(doc.data(), id: doc.id);
+          }).toList();
+        });
   }
 
   Stream<List<Notification>> getAllNotifications() {
@@ -27,9 +27,9 @@ class NotificationService {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return Notification.fromMap(doc.data(), id: doc.id);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            return Notification.fromMap(doc.data(), id: doc.id);
+          }).toList();
+        });
   }
 }

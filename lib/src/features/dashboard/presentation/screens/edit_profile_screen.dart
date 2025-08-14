@@ -17,7 +17,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: currentUser?.displayName ?? '');
+    _nameController = TextEditingController(
+      text: currentUser?.displayName ?? '',
+    );
   }
 
   @override
@@ -29,9 +31,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Profile'),
-      ),
+      appBar: AppBar(title: const Text('Edit Profile')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -57,7 +57,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 onPressed: () async {
                   if (_formKey.currentState!.validate()) {
                     if (currentUser != null) {
-                      await currentUser!.updateDisplayName(_nameController.text);
+                      await currentUser!.updateDisplayName(
+                        _nameController.text,
+                      );
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Profile Updated!')),
                       );
@@ -70,7 +72,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 48,
+                    vertical: 16,
+                  ),
                 ),
                 child: const Text('Save Changes'),
               ),

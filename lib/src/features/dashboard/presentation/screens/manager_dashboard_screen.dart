@@ -1,67 +1,72 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'calendar_view.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'events_overview.dart';
-import 'profile_page.dart';
 
-class ManagerDashboardScreen extends StatefulWidget {
+class ManagerDashboardScreen extends StatelessWidget {
   const ManagerDashboardScreen({super.key});
-
-  @override
-  State<ManagerDashboardScreen> createState() => _ManagerDashboardScreenState();
-}
-
-class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
-  int _selectedIndex = 0;
-
-  static const List<Widget> _widgetOptions = <Widget>[
-    CalendarView(),
-    EventsOverview(),
-    ProfilePage(),
-  ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
       ),
-      body: Center(
-        child: _widgetOptions.elementAt(_selectedIndex),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Analytics Overview',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 200,
+              child: LineChart(
+                LineChartData(
+                  gridData: const FlGridData(show: false),
+                  titlesData: const FlTitlesData(show: false),
+                  borderData: FlBorderData(show: false),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: const [
+                        FlSpot(0, 3),
+                        FlSpot(2.6, 2),
+                        FlSpot(4.9, 5),
+                        FlSpot(6.8, 3.1),
+                        FlSpot(8, 4),
+                        FlSpot(9.5, 3),
+                        FlSpot(11, 4),
+                      ],
+                      isCurved: true,
+                      color: Theme.of(context).primaryColor,
+                      barWidth: 5,
+                      isStrokeCapRound: true,
+                      dotData: const FlDotData(show: false),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: Theme.of(context).primaryColor.withOpacity(0.3),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Divider(),
+            const SizedBox(height: 20),
+            const Text(
+              'Upcoming Events',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            const EventsOverview(),
+          ],
+        ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Calendar',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.event),
-            label: 'Events',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        onTap: _onItemTapped,
-      ),
-      floatingActionButton: _selectedIndex == 1
-          ? FloatingActionButton(
-              onPressed: () {
-                context.go('/add-event');
-              },
-              child: const Icon(Icons.add),
-            )
-          : null,
     );
   }
 }

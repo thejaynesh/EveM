@@ -2,9 +2,7 @@
 
 ## 1. Overview
 
-EveM is a comprehensive Flutter application designed for both event managers and attendees. The primary focus of the initial development is on the event manager's experience. The app will provide tools for managers to create, manage, and monitor events, while attendees will have the ability to discover, register for, and receive updates about events.
-
-The application will be built following modern Flutter best practices, including a clean architecture, state management, and a rich, interactive user interface.
+EveM is a comprehensive Flutter application designed for both event managers and attendees. The app provides tools for managers to create and oversee events, while offering attendees a platform to discover, register for, and engage with them. The application is built with a focus on a clean, modern user interface and a robust, scalable architecture.
 
 ## 2. Project Outline
 
@@ -12,79 +10,57 @@ This section documents the style, design, and features of the EveM application.
 
 ### 2.1. Architecture
 
-*   **Structure**: The project will follow a feature-first layered architecture. Code will be organized into `presentation`, `domain`, and `data` layers within each feature folder.
-    *   `lib/src/features`: Contains individual features like `auth`, `dashboard`, `event_management`, `onboarding`, `attendee`, etc.
-    *   `lib/src/core`: Contains core application logic like routing, theming, and dependency injection.
-    *   `lib/src/shared`: Contains shared components, utilities, and models used across multiple features.
-*   **State Management**: `provider` will be used for state management and dependency injection to ensure a clear and scalable data flow.
-*   **Navigation**: `go_router` will be used for declarative routing, enabling deep linking and a structured navigation system.
-*   **UI/UX**: The application will adhere to Material Design 3 principles, with a focus on creating a beautiful, intuitive, and accessible user interface. It will feature a modern design with expressive typography, a vibrant color palette, and interactive components.
+*   **Structure**: The project follows a feature-first layered architecture. Code is organized into `presentation`, `domain`, and `data` layers within each feature folder.
+*   **State Management**: `provider` is used for state management and dependency injection.
+*   **Navigation**: `go_router` is used for declarative routing, enabling deep linking and a structured navigation system. The app is divided into public, manager-authenticated, and attendee-authenticated routes using `ShellRoute`.
+*   **UI/UX**: The application adheres to Material Design 3 principles, featuring a modern design with expressive typography, a vibrant color palette, and interactive, mobile-responsive components.
 
 ### 2.2. Implemented Features
 
-*   **Firebase Integration**:
-    *   Firebase Core, Authentication, and Cloud Firestore dependencies added.
-    *   Firebase initialized in `main.dart`.
-    *   Firebase MCP configured.
-*   **Onboarding**:
-    *   `WelcomeScreen` as the initial entry point, allowing users to choose between Event Manager and Event Attendee roles.
+*   **Firebase Integration**: Core, Authentication, and Cloud Firestore are fully integrated.
+*   **Public Access & Onboarding**:
+    *   **Default Entry Point**: The app now opens directly to the `EventDiscoveryScreen`, which is accessible to all users without requiring login.
+    *   **Public Navigation**: A `PublicScaffold` provides a consistent side navigation for unauthenticated users with options to "Explore Events," "Attendee Login," "Attendee Register," and "Manager Login."
+    *   The `WelcomeScreen` has been fully removed from the project.
 *   **Authentication**:
-    *   `AuthService` for user registration and login using Firebase Authentication.
-    *   Manager Login and Registration screens integrated with `AuthService`.
-    *   Attendee Login and Registration screens integrated with `AuthService`.
-    *   Logout functionality implemented on both Manager Profile and Attendee Dashboard.
-*   **Manager Dashboard**:
-    *   Bottom navigation bar for switching between Calendar, Events, and Profile sections.
-    *   A floating action button on the Events page to add new events.
-*   **Event Management (Manager)**:
-    *   `Event` model updated with `isPublished` flag.
-    *   `EventService` created for handling Firestore CRUD operations for events.
-    *   An "Add Event" form with fields for title, description, date, time, and a "Publish Event" switch, now saving data to Firestore.
-    *   An "Event Details" screen, fetching event details dynamically from Firestore based on the event ID.
-        *   Includes dynamic Budget Summary, Task List, and Collaborator List using Firestore data.
-        *   Functionality to add/edit budget, add/delete tasks, and add/delete collaborators implemented.
-        *   Functionality to send notifications to attendees for a specific event.
-    *   `EditEventScreen` implemented for modifying existing event details, pre-populating fields with current data, including the "Publish Event" switch.
-    *   The "Events" overview page fetches and displays events specific to the logged-in manager from Firestore.
-    *   Models for `Collaborator`, `Task`, and `Budget` created.
-    *   Services for `CollaboratorService`, `TaskService`, and `BudgetService` created for Firestore operations.
-*   **Calendar (Manager)**:
-    *   A calendar view that fetches events from Firestore, highlights days with events, and displays a list of events for the selected day.
-*   **Profile (Manager)**:
-    *   A profile page with user information and a logout button.
-    *   `EditProfileScreen` implemented for updating user's display name using Firebase Authentication.
-*   **Attendee Dashboard**:
-    *   Bottom navigation bar for switching between Event Discovery, Notifications, and My Registrations.
-    *   `EventDiscoveryScreen` now fetches and displays all *published* events from Firestore with search and filtering capabilities.
-    *   `AttendeeEventDetailsScreen` displays event details for attendees and allows them to register for events.
-    *   `MyRegistrationsScreen` displays events the attendee has registered for.
-    *   `NotificationsScreen` displays all event notifications.
-    *   `AttendeeProfileScreen` implemented for updating user's display name using Firebase Authentication.
-*   **Notifications**:
-    *   `Notification` model and `NotificationService` for sending and receiving event notifications.
-*   **Registrations**:
-    *   `Registration` model and `RegistrationService` for handling event registrations.
+    *   **Role-Based Login**: Separate login and registration flows for Event Managers and Attendees.
+    *   **UI Enhancements**: The Login and Register screens have been visually improved with a constrained width to prevent stretching on web/desktop and a more polished design.
+    *   **Auth Flow Fix**: An issue causing managers to be logged out after creating or editing an event has been resolved.
+*   **Manager Experience**:
+    *   **Unified Scaffold**: A consistent `ManagerScaffold` is used across all manager-side screens, featuring a navigation rail with "Dashboard," "Add Event," and "Profile" links.
+    *   **Logout**: A dedicated logout button is now present at the bottom of the manager's navigation rail for easy access.
+    *   **Event Management**: Full CRUD functionality for events, including a "Publish" switch.
+    *   **Dashboard**: Includes a calendar view of events, an overview of managed events, and detailed views with budget, task, and collaborator management.
+*   **Attendee Experience**:
+    *   **Unified Scaffold**: A consistent `AttendeeScaffold` is used across all attendee-side screens, featuring a navigation rail with "Dashboard," and "Profile" links.
+    *   **Logout**: A dedicated logout button is now present at the bottom of the attendee's navigation rail for easy access.
+    *   **Event Discovery**: Attendees can search and view all *published* events.
+    *   **Event Details & Registration**: View detailed event information and register for events.
+    *   **Authenticated Dashboard**: Logged-in attendees have a dashboard to view their registrations, notifications, and profile.
+*   **Navigation Fix**: The GoRouter navigation has been fixed and the selected index is now passed correctly to the `PublicScaffold`, `ManagerScaffold`, and `AttendeeScaffold` widgets.
 
 ### 2.3. Design System
 
-*   **Color Palette**: A modern and vibrant color scheme has been defined using `ColorScheme.fromSeed` with `Colors.deepPurple` as the primary seed color.
-*   **Typography**: `google_fonts` has been integrated to use the Oswald, Roboto, and Open Sans fonts for a clear and expressive typographic hierarchy.
-*   **Iconography**: Material Design icons are used throughout the application to enhance usability and visual communication.
-*   **Components**: Reusable and themed widgets have been created for common UI elements like buttons, text fields, and cards.
+*   **Color Palette**: A modern color scheme generated from a `Colors.deepPurple` seed.
+*   **Typography**: `google_fonts` (Oswald, Roboto, Open Sans) are used for a clear typographic hierarchy.
+*   **Iconography**: Material Design icons enhance usability and visual communication.
+*   **Components**: Reusable and themed widgets are used for UI consistency.
 
-## 3. Current Plan: Next Steps
+## 3. Current Plan: Final Polish & Future Enhancements
 
-This plan outlines the final steps for the application's development, focusing on overall polish and potential future enhancements.
+This plan outlines the final steps for the application's development, focusing on overall polish and potential future features.
 
 **Plan Steps:**
 
-1.  **Final Polish**:
+1.  **Final Polish & Bug Squashing**:
     *   Review the entire application for any remaining bugs or UI inconsistencies.
-    *   Add loading indicators where needed for a smoother user experience.
-    *   Ensure accessibility standards are met throughout the application.
-    *   Conduct thorough testing of all features.
-2.  **Future Enhancements (Consideration)**:
-    *   Implement user roles more robustly with Firebase Security Rules.
-    *   Add profile picture upload functionality.
+    *   Add loading indicators where needed for a smoother user experience during data fetching.
+    *   Ensure all error messages are user-friendly.
+    *   Verify that the application is fully responsive and accessible on both mobile and web platforms.
+    *   Conduct thorough end-to-end testing of all user flows (Public, Attendee, and Manager).
+
+2.  **Future Enhancements (Post-MVP)**:
+    *   Implement more robust security using Firebase Security Rules to protect data at the backend.
+    *   Add profile picture upload functionality for both managers and attendees.
     *   Integrate real-time chat for event collaborators.
-    *   Implement push notifications using Firebase Cloud Messaging.
+    *   Implement push notifications using Firebase Cloud Messaging to alert attendees of event updates.

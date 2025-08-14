@@ -33,18 +33,23 @@ class _CalendarViewState extends State<CalendarView> {
       _eventService.getEventsForManager(currentUser.uid).listen((events) {
         setState(() {
           _events = events;
-          _selectedEvents = _getEventsForDay(_selectedDay!); // Update selected events on data change
+          _selectedEvents = _getEventsForDay(
+            _selectedDay!,
+          ); // Update selected events on data change
         });
       });
     }
   }
 
   List<Event> _getEventsForDay(DateTime day) {
-    return _events.where((event) =>
-        event.date.year == day.year &&
-        event.date.month == day.month &&
-        event.date.day == day.day
-    ).toList();
+    return _events
+        .where(
+          (event) =>
+              event.date.year == day.year &&
+              event.date.month == day.month &&
+              event.date.day == day.day,
+        )
+        .toList();
   }
 
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
@@ -99,7 +104,10 @@ class _CalendarViewState extends State<CalendarView> {
             itemBuilder: (context, index) {
               final event = _selectedEvents[index];
               return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 8.0,
+                  vertical: 4.0,
+                ),
                 child: ListTile(
                   title: Text(event.title),
                   subtitle: Text(event.time.format(context)),

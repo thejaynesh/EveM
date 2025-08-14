@@ -10,10 +10,10 @@ class CollaboratorService {
         .where('eventId', isEqualTo: eventId)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return Collaborator.fromMap(doc.data(), doc.id);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            return Collaborator.fromMap(doc.data(), doc.id);
+          }).toList();
+        });
   }
 
   Future<void> addCollaborator(Collaborator collaborator) async {
@@ -21,7 +21,10 @@ class CollaboratorService {
   }
 
   Future<void> updateCollaborator(Collaborator collaborator) async {
-    await _firestore.collection('collaborators').doc(collaborator.id).update(collaborator.toMap());
+    await _firestore
+        .collection('collaborators')
+        .doc(collaborator.id)
+        .update(collaborator.toMap());
   }
 
   Future<void> deleteCollaborator(String collaboratorId) async {

@@ -36,20 +36,20 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyBZZjqjCKRVSPnVTqeApVzq_8qTzVcnesY',
-    authDomain: 'evem-a97e0.firebaseapp.com',
-    projectId: 'evem-a97e0',
-    storageBucket: 'evem-a97e0.appspot.com',
-    messagingSenderId: '283020318458',
     appId: '1:283020318458:web:d335c31710919a77029b43',
+    messagingSenderId: '283020318458',
+    projectId: 'evem-a97e0',
+    authDomain: 'evem-a97e0.firebaseapp.com',
+    storageBucket: 'evem-a97e0.firebasestorage.app',
     measurementId: 'G-6RQFJR5KGG',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'YOUR_API_KEY', // Replace with your Android API key
-    appId: 'YOUR_APP_ID', // Replace with your Android app ID
+    apiKey: 'AIzaSyCTW5Tkj1Pg-w6yx6TWMsuQ-ODYOJhEA-o',
+    appId: '1:283020318458:android:64d9f661ae56ffc5029b43',
     messagingSenderId: '283020318458',
     projectId: 'evem-a97e0',
-    storageBucket: 'evem-a97e0.appspot.com',
+    storageBucket: 'evem-a97e0.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(

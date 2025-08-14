@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../auth/data/auth_service.dart';
-import 'edit_profile_screen.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -16,10 +15,7 @@ class ProfilePage extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          const CircleAvatar(
-            radius: 50,
-            child: Icon(Icons.person, size: 50),
-          ),
+          const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 50)),
           const SizedBox(height: 16),
           Text(
             currentUser?.displayName ?? 'N/A',
@@ -43,9 +39,7 @@ class ProfilePage extends StatelessWidget {
               await auth.signOut();
               context.go('/');
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Logout'),
           ),
         ],

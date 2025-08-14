@@ -10,15 +10,21 @@ class BudgetService {
         .where('eventId', isEqualTo: eventId)
         .snapshots()
         .map((snapshot) {
-      if (snapshot.docs.isNotEmpty) {
-        return Budget.fromMap(snapshot.docs.first.data(), snapshot.docs.first.id);
-      } else {
-        return null;
-      }
-    });
+          if (snapshot.docs.isNotEmpty) {
+            return Budget.fromMap(
+              snapshot.docs.first.data(),
+              snapshot.docs.first.id,
+            );
+          } else {
+            return null;
+          }
+        });
   }
 
   Future<void> setBudget(Budget budget) async {
-    await _firestore.collection('budgets').doc(budget.id).update(budget.toMap());
-    }
+    await _firestore
+        .collection('budgets')
+        .doc(budget.id)
+        .update(budget.toMap());
+  }
 }

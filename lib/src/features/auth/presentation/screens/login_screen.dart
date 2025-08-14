@@ -7,10 +7,10 @@ class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  LoginScreenState createState() => LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class LoginScreenState extends State<LoginScreen> {
   final AuthService _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
   String email = '';
@@ -34,68 +34,92 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(32.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'EveM',
-                    style: GoogleFonts.oswald(
-                      fontSize: 64,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+            child: SizedBox(
+              width: 400, // Fixed width for the form
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'EveM',
+                      style: GoogleFonts.oswald(
+                        fontSize: 64,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Welcome Back, Manager!',
-                    style: GoogleFonts.roboto(
-                      fontSize: 18,
-                      color: Colors.white70,
+                    const SizedBox(height: 16),
+                    Text(
+                      'Welcome Back, Manager!',
+                      style: GoogleFonts.roboto(
+                        fontSize: 18,
+                        color: Colors.white70,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 48),
-                  _buildTextField(context, 'Email', onChanged: (val) {
-                    setState(() => email = val);
-                  }),
-                  const SizedBox(height: 24),
-                  _buildTextField(context, 'Password', obscureText: true, onChanged: (val) {
-                    setState(() => password = val);
-                  }),
-                  const SizedBox(height: 48),
-                  ElevatedButton(
-                    onPressed: () async {
-                      if (_formKey.currentState!.validate()) {
-                        dynamic result = await _auth.signInWithEmailAndPassword(email, password);
-                        if (result == null) {
-                          setState(() => error = 'Could not sign in with those credentials');
-                        } else {
-                          context.go('/dashboard');
+                    const SizedBox(height: 48),
+                    _buildTextField(
+                      context,
+                      'Email',
+                      onChanged: (val) {
+                        setState(() => email = val);
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    _buildTextField(
+                      context,
+                      'Password',
+                      obscureText: true,
+                      onChanged: (val) {
+                        setState(() => password = val);
+                      },
+                    ),
+                    const SizedBox(height: 48),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (_formKey.currentState!.validate()) {
+                          dynamic result = await _auth
+                              .signInWithEmailAndPassword(email, password);
+                          if (!context.mounted) return;
+                          if (result == null) {
+                            setState(
+                              () => error =
+                                  'Could not sign in with those credentials',
+                            );
+                          } else {
+                            context.go('/manager/dashboard');
+                          }
                         }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 48,
+                          vertical: 16,
+                        ),
+                        minimumSize: const Size(
+                          double.infinity,
+                          50,
+                        ), // Make button full width
+                      ),
+                      child: const Text('Login'),
                     ),
-                    child: const Text('Login'),
-                  ),
-                  const SizedBox(height: 12.0),
-                  Text(
-                    error,
-                    style: const TextStyle(color: Colors.red, fontSize: 14.0),
-                  ),
-                  const SizedBox(height: 12.0),
-                  TextButton(
-                    onPressed: () {
-                      context.go('/register');
-                    },
-                    child: const Text(
-                      'Don\'t have an account? Register',
-                      style: TextStyle(color: Colors.white),
+                    const SizedBox(height: 12.0),
+                    Text(
+                      error,
+                      style: const TextStyle(color: Colors.red, fontSize: 14.0),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12.0),
+                    TextButton(
+                      onPressed: () {
+                        context.go('/register');
+                      },
+                      child: const Text(
+                        'Don\'t have an account? Register',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -104,16 +128,24 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildTextField(BuildContext context, String label, {bool obscureText = false, required Function(String) onChanged}) {
+  Widget _buildTextField(
+    BuildContext context,
+    String label, {
+    bool obscureText = false,
+    required Function(String) onChanged,
+  }) {
     return TextFormField(
       obscureText: obscureText,
       style: const TextStyle(color: Colors.white),
+      cursorColor: Colors.white,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Colors.white70),
+        filled: true,
+        fillColor: Colors.white.withAlpha(51),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white54),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

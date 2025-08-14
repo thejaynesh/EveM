@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/models/event.dart';
-import 'edit_event_screen.dart';
 import '../../data/budget_service.dart';
 import '../../data/collaborator_service.dart';
 import '../../data/task_service.dart';
@@ -24,10 +23,16 @@ class EventDetailsScreen extends StatelessWidget {
         title: const Text('Event Details'),
         actions: [
           StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance.collection('events').doc(eventId).snapshots(),
+            stream: FirebaseFirestore.instance
+                .collection('events')
+                .doc(eventId)
+                .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasData && snapshot.data!.exists) {
-                final event = Event.fromMap(snapshot.data!.data() as Map<String, dynamic>, id: snapshot.data!.id);
+                final event = Event.fromMap(
+                  snapshot.data!.data() as Map<String, dynamic>,
+                  id: snapshot.data!.id,
+                );
                 return IconButton(
                   icon: const Icon(Icons.edit),
                   onPressed: () {
@@ -47,7 +52,10 @@ class EventDetailsScreen extends StatelessWidget {
         ],
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('events').doc(eventId).snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('events')
+            .doc(eventId)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -59,36 +67,44 @@ class EventDetailsScreen extends StatelessWidget {
             return const Center(child: Text('Event not found.'));
           }
 
-          final event = Event.fromMap(snapshot.data!.data() as Map<String, dynamic>, id: snapshot.data!.id);
+          final event = Event.fromMap(
+            snapshot.data!.data() as Map<String, dynamic>,
+            id: snapshot.data!.id,
+          );
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  event.title,
-                  style: Theme.of(context).textTheme.headlineMedium,
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: 800,
+              ), // Max width for web/desktop
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      event.title,
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${event.date.toLocal().toString().split(' ')[0]} at ${event.time.format(context)}',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(event.description),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle(context, 'Budget'),
+                    BudgetSummary(eventId: eventId),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle(context, 'Tasks'),
+                    TaskList(eventId: eventId),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle(context, 'Collaborators'),
+                    CollaboratorList(eventId: eventId),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '${event.date.toLocal().toString().split(' ')[0]} at ${event.time.format(context)}',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  event.description,
-                ),
-                const SizedBox(height: 24),
-                _buildSectionTitle(context, 'Budget'),
-                BudgetSummary(eventId: eventId),
-                const SizedBox(height: 24),
-                _buildSectionTitle(context, 'Tasks'),
-                TaskList(eventId: eventId),
-                const SizedBox(height: 24),
-                _buildSectionTitle(context, 'Collaborators'),
-                CollaboratorList(eventId: eventId),
-              ],
+              ),
             ),
           );
         },
@@ -147,10 +163,7 @@ class EventDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.headlineSmall,
-    );
+    return Text(title, style: Theme.of(context).textTheme.headlineSmall);
   }
 }
 
@@ -220,8 +233,12 @@ class BudgetSummary extends StatelessWidget {
   }
 
   void _showBudgetDialog(BuildContext context, Budget? currentBudget) {
-    final TextEditingController totalBudgetController = TextEditingController(text: currentBudget?.totalBudget.toString() ?? '');
-    final TextEditingController totalSpentController = TextEditingController(text: currentBudget?.totalSpent.toString() ?? '');
+    final TextEditingController totalBudgetController = TextEditingController(
+      text: currentBudget?.totalBudget.toString() ?? '',
+    );
+    final TextEditingController totalSpentController = TextEditingController(
+      text: currentBudget?.totalSpent.toString() ?? '',
+    );
 
     showDialog(
       context: context,
@@ -250,8 +267,10 @@ class BudgetSummary extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () async {
-                final newTotalBudget = double.tryParse(totalBudgetController.text) ?? 0.0;
-                final newTotalSpent = double.tryParse(totalSpentController.text) ?? 0.0;
+                final newTotalBudget =
+                    double.tryParse(totalBudgetController.text) ?? 0.0;
+                final newTotalSpent =
+                    double.tryParse(totalSpentController.text) ?? 0.0;
 
                 final budget = Budget(
                   id: currentBudget!.id,
@@ -289,24 +308,20 @@ class TaskList extends StatelessWidget {
           return Text('Error: ${snapshot.error}');
         }
         final tasks = snapshot.data ?? [];
+        final completedTasks = tasks.where((task) => task.isCompleted).toList();
+        final incompleteTasks = tasks
+            .where((task) => !task.isCompleted)
+            .toList();
 
         return Card(
           child: Column(
             children: [
-              ...tasks.map((task) => ListTile(
-                    title: Text(task.title),
-                    subtitle: Text(task.description),
-                    trailing: Checkbox(
-                      value: task.isCompleted,
-                      onChanged: (value) async {
-                        await taskService.updateTask(task.copyWith(isCompleted: value));
-                      },
-                    ),
-                    onLongPress: () async {
-                      // Option to delete task
-                      await taskService.deleteTask(task.id);
-                    },
-                  )),
+              ...incompleteTasks.map(
+                (task) => _buildTaskTile(context, task, taskService),
+              ),
+              ...completedTasks.map(
+                (task) => _buildTaskTile(context, task, taskService),
+              ),
               ListTile(
                 leading: const Icon(Icons.add),
                 title: const Text('Add Task'),
@@ -317,6 +332,34 @@ class TaskList extends StatelessWidget {
             ],
           ),
         );
+      },
+    );
+  }
+
+  Widget _buildTaskTile(
+    BuildContext context,
+    Task task,
+    TaskService taskService,
+  ) {
+    return ListTile(
+      title: Text(
+        task.title,
+        style: TextStyle(
+          decoration: task.isCompleted
+              ? TextDecoration.lineThrough
+              : TextDecoration.none,
+        ),
+      ),
+      subtitle: Text(task.description),
+      trailing: Checkbox(
+        value: task.isCompleted,
+        onChanged: (value) async {
+          await taskService.updateTask(task.copyWith(isCompleted: value));
+        },
+      ),
+      onLongPress: () async {
+        // Option to delete task
+        await taskService.deleteTask(task.id);
       },
     );
   }
@@ -390,17 +433,19 @@ class CollaboratorList extends StatelessWidget {
         return Card(
           child: Column(
             children: [
-              ...collaborators.map((collaborator) => ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.person),
-                    ),
-                    title: Text(collaborator.email),
-                    subtitle: Text(collaborator.role),
-                    onLongPress: () async {
-                      // Option to delete collaborator
-                      await collaboratorService.deleteCollaborator(collaborator.id);
-                    },
-                  )),
+              ...collaborators.map(
+                (collaborator) => ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.person)),
+                  title: Text(collaborator.email),
+                  subtitle: Text(collaborator.role),
+                  onLongPress: () async {
+                    // Option to delete collaborator
+                    await collaboratorService.deleteCollaborator(
+                      collaborator.id,
+                    );
+                  },
+                ),
+              ),
               ListTile(
                 leading: const Icon(Icons.add),
                 title: const Text('Add Collaborator'),
@@ -429,7 +474,9 @@ class CollaboratorList extends StatelessWidget {
             children: [
               TextField(
                 controller: emailController,
-                decoration: const InputDecoration(labelText: 'Collaborator Email'),
+                decoration: const InputDecoration(
+                  labelText: 'Collaborator Email',
+                ),
                 keyboardType: TextInputType.emailAddress,
               ),
               TextField(

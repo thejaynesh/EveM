@@ -1,4 +1,3 @@
-
 class Collaborator {
   final String id;
   final String eventId;
@@ -15,12 +14,7 @@ class Collaborator {
   });
 
   Map<String, dynamic> toMap() {
-    return {
-      'eventId': eventId,
-      'userId': userId,
-      'email': email,
-      'role': role,
-    };
+    return {'eventId': eventId, 'userId': userId, 'email': email, 'role': role};
   }
 
   factory Collaborator.fromMap(Map<String, dynamic> map, String id) {

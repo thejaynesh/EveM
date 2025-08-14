@@ -12,10 +12,10 @@ class EventService {
         .where('managerId', isEqualTo: managerId)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return Event.fromMap(doc.data(), id: doc.id);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            return Event.fromMap(doc.data(), id: doc.id);
+          }).toList();
+        });
   }
 
   Future<Event?> getEventById(String eventId) async {
@@ -29,7 +29,9 @@ class EventService {
 
   Future<void> addEvent(Event event) async {
     if (_auth.currentUser != null) {
-      final eventWithManagerId = event.copyWith(managerId: _auth.currentUser!.uid);
+      final eventWithManagerId = event.copyWith(
+        managerId: _auth.currentUser!.uid,
+      );
       await _firestore.collection('events').add(eventWithManagerId.toMap());
     }
   }

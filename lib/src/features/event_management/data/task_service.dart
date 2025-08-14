@@ -10,10 +10,10 @@ class TaskService {
         .where('eventId', isEqualTo: eventId)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return Task.fromMap(doc.data(), doc.id);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            return Task.fromMap(doc.data(), doc.id);
+          }).toList();
+        });
   }
 
   Future<void> addTask(Task task) async {

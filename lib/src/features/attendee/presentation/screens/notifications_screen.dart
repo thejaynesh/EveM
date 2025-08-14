@@ -10,40 +10,47 @@ class NotificationsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final NotificationService notificationService = NotificationService();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
-      ),
-      body: StreamBuilder<List<app_notification.Notification>>(
-        stream: notificationService.getAllNotifications(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No notifications yet.'));
-          }
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 800,
+        ), // Max width for web/desktop
+        child: StreamBuilder<List<app_notification.Notification>>(
+          stream: notificationService.getAllNotifications(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(child: Text('No notifications yet.'));
+            }
 
-          final notifications = snapshot.data!;
+            final notifications = snapshot.data!;
 
-          return ListView.builder(
-            itemCount: notifications.length,
-            itemBuilder: (context, index) {
-              final notification = notifications[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                child: ListTile(
-                  title: Text(notification.title),
-                  subtitle: Text(notification.message),
-                  trailing: Text(DateFormat.yMd().add_jm().format(notification.timestamp)),
-                ),
-              );
-            },
-          );
-        },
+            return ListView.builder(
+              itemCount: notifications.length,
+              itemBuilder: (context, index) {
+                final notification = notifications[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 8.0,
+                    vertical: 4.0,
+                  ),
+                  child: ListTile(
+                    title: Text(notification.title),
+                    subtitle: Text(notification.message),
+                    trailing: Text(
+                      DateFormat.yMd().add_jm().format(notification.timestamp),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

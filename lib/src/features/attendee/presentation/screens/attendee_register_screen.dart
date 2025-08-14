@@ -7,10 +7,10 @@ class AttendeeRegisterScreen extends StatefulWidget {
   const AttendeeRegisterScreen({super.key});
 
   @override
-  _AttendeeRegisterScreenState createState() => _AttendeeRegisterScreenState();
+  AttendeeRegisterScreenState createState() => AttendeeRegisterScreenState();
 }
 
-class _AttendeeRegisterScreenState extends State<AttendeeRegisterScreen> {
+class AttendeeRegisterScreenState extends State<AttendeeRegisterScreen> {
   final AuthService _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
   String email = '';
@@ -56,18 +56,29 @@ class _AttendeeRegisterScreenState extends State<AttendeeRegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 48),
-                  _buildTextField(context, 'Email', onChanged: (val) {
-                    setState(() => email = val);
-                  }),
+                  _buildTextField(
+                    context,
+                    'Email',
+                    onChanged: (val) {
+                      setState(() => email = val);
+                    },
+                  ),
                   const SizedBox(height: 24),
-                  _buildTextField(context, 'Password', obscureText: true, onChanged: (val) {
-                    setState(() => password = val);
-                  }),
+                  _buildTextField(
+                    context,
+                    'Password',
+                    obscureText: true,
+                    onChanged: (val) {
+                      setState(() => password = val);
+                    },
+                  ),
                   const SizedBox(height: 48),
                   ElevatedButton(
                     onPressed: () async {
                       if (_formKey.currentState!.validate()) {
-                        dynamic result = await _auth.registerWithEmailAndPassword(email, password);
+                        dynamic result = await _auth
+                            .registerWithEmailAndPassword(email, password);
+                        if (!context.mounted) return; // Add mounted check
                         if (result == null) {
                           setState(() => error = 'Please supply a valid email');
                         } else {
@@ -76,7 +87,10 @@ class _AttendeeRegisterScreenState extends State<AttendeeRegisterScreen> {
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 48,
+                        vertical: 16,
+                      ),
                     ),
                     child: const Text('Register'),
                   ),
@@ -104,10 +118,16 @@ class _AttendeeRegisterScreenState extends State<AttendeeRegisterScreen> {
     );
   }
 
-  Widget _buildTextField(BuildContext context, String label, {bool obscureText = false, required Function(String) onChanged}) {
+  Widget _buildTextField(
+    BuildContext context,
+    String label, {
+    bool obscureText = false,
+    required Function(String) onChanged,
+  }) {
     return TextFormField(
       obscureText: obscureText,
       style: const TextStyle(color: Colors.white),
+      cursorColor: Colors.white,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Colors.white70),

@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../event_management/data/event_service.dart';
-import '../../../event_management/presentation/screens/event_details_screen.dart'; // Import EventDetailsScreen
-import '../../../../shared/models/event.dart'; // Import Event model
+import '../../../../shared/models/event.dart';
 
 class EventsOverview extends StatelessWidget {
   const EventsOverview({super.key});
@@ -27,11 +26,15 @@ class EventsOverview extends StatelessWidget {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No events found. Start by adding a new event!'));
+          return const Center(
+            child: Text('No events found. Start by adding a new event!'),
+          );
         }
 
         final events = snapshot.data!;
         return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           itemCount: events.length,
           itemBuilder: (context, index) {
             final event = events[index];
@@ -55,10 +58,12 @@ class EventCard extends StatelessWidget {
       child: ListTile(
         leading: const Icon(Icons.event),
         title: Text(event.title),
-        subtitle: Text('${event.date.toLocal().toString().split(' ')[0]} at ${event.time.format(context)}'),
+        subtitle: Text(
+          '${event.date.toLocal().toString().split(' ')[0]} at ${event.time.format(context)}',
+        ),
         trailing: const Icon(Icons.arrow_forward_ios),
         onTap: () {
-          context.go('/event-details/${event.id}');
+          context.go('/manager/event-details/${event.id}');
         },
       ),
     );
