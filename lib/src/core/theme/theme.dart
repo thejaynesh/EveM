@@ -6,10 +6,22 @@ class AppTheme {
   static const Color primarySeedColor = Color(0xFF1E88E5); // Deep Sky Blue
 
   static final TextTheme _appTextTheme = TextTheme(
-    displayLarge: GoogleFonts.poppins(fontSize: 57, fontWeight: FontWeight.bold, color: Colors.black87),
-    titleLarge: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w600, color: Colors.black87),
+    displayLarge: GoogleFonts.poppins(
+      fontSize: 57,
+      fontWeight: FontWeight.bold,
+      color: Colors.black87,
+    ),
+    titleLarge: GoogleFonts.poppins(
+      fontSize: 22,
+      fontWeight: FontWeight.w600,
+      color: Colors.black87,
+    ),
     bodyMedium: GoogleFonts.openSans(fontSize: 14, color: Colors.black87),
-    labelLarge: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.white),
+    labelLarge: GoogleFonts.poppins(
+      fontSize: 16,
+      fontWeight: FontWeight.w500,
+      color: Colors.white,
+    ),
   );
 
   static ThemeData get lightTheme {
@@ -22,8 +34,7 @@ class AppTheme {
       onSecondary: Colors.white,
       surface: Colors.white,
       onSurface: Colors.black87,
-      background: const Color(0xFFF0F2F5), // Light grey for background
-      onBackground: Colors.black87,
+      // background and onBackground are derived from surface and onSurface in M3
       error: Colors.redAccent,
       onError: Colors.white,
     );
@@ -47,19 +58,26 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           foregroundColor: lightColorScheme.onPrimary,
           backgroundColor: lightColorScheme.primary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
           textStyle: _appTextTheme.labelLarge,
           elevation: 6,
-          shadowColor: lightColorScheme.primary.withOpacity(0.4),
+          // shadowColor with opacity is acceptable for specific button glow effects
+          shadowColor: lightColorScheme.primary.withAlpha(
+            (255 * 0.4).round(),
+          ), // Fix: replaced withOpacity
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: const CardThemeData(
+        // FIX: Changed to CardThemeData and made it const
         elevation: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        shadowColor: Colors.black.withOpacity(0.1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+        ),
+        // shadowColor is now derived from elevation and surface tint in M3, so direct assignment is removed.
       ),
-      // Add other component themes for a consistent look
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
@@ -83,8 +101,8 @@ class AppTheme {
         foregroundColor: lightColorScheme.onSecondary,
         elevation: 8,
       ),
-      // Use subtle noise texture for background if needed, here as a placeholder for visual effect
-      scaffoldBackgroundColor: lightColorScheme.background,
+      scaffoldBackgroundColor:
+          lightColorScheme.surface, // Use surface for consistency
     );
   }
 
@@ -98,8 +116,7 @@ class AppTheme {
       onSecondary: Colors.black,
       surface: const Color(0xFF1E1E1E), // Dark surface
       onSurface: Colors.white70,
-      background: const Color(0xFF121212), // Darkest grey for background
-      onBackground: Colors.white70,
+      // background and onBackground are derived from surface and onSurface in M3
       error: Colors.red[300],
       onError: Colors.black,
     );
@@ -126,19 +143,27 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           foregroundColor: darkColorScheme.onPrimary,
           backgroundColor: darkColorScheme.primary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-          textStyle: _appTextTheme.labelLarge?.copyWith(color: darkColorScheme.onPrimary),
+          textStyle: _appTextTheme.labelLarge?.copyWith(
+            color: darkColorScheme.onPrimary,
+          ),
           elevation: 6,
-          shadowColor: darkColorScheme.primary.withOpacity(0.4),
+          shadowColor: darkColorScheme.primary.withAlpha(
+            (255 * 0.4).round(),
+          ), // Fix: replaced withOpacity
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: const CardThemeData(
+        // FIX: Changed to CardThemeData and made it const
         elevation: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        shadowColor: Colors.black.withOpacity(0.3),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+        ),
+        // shadowColor is now derived from elevation and surface tint in M3, so direct assignment is removed.
       ),
-      // Add other component themes for a consistent look
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: darkColorScheme.surface,
@@ -162,7 +187,8 @@ class AppTheme {
         foregroundColor: darkColorScheme.onSecondary,
         elevation: 8,
       ),
-      scaffoldBackgroundColor: darkColorScheme.background,
+      scaffoldBackgroundColor:
+          darkColorScheme.surface, // Use surface for consistency
     );
   }
 }

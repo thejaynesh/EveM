@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../../event_management/data/event_service.dart';
+
 import '../../../../shared/models/event.dart';
-import 'package:go_router/go_router.dart';
+import '../../../event_management/data/event_service.dart';
 
 class CalendarView extends StatefulWidget {
   const CalendarView({super.key});
@@ -13,131 +14,118 @@ class CalendarView extends StatefulWidget {
 }
 
 class _CalendarViewState extends State<CalendarView> {
-  CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  final EventService _eventService = EventService();
-  List<Event> _events = [];
-  List<Event> _selectedEvents = [];
+  late ValueNotifier<List<Event>> _selectedEvents;
+  Map<DateTime, List<Event>> _eventsByDay = {};
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    _fetchEvents();
+    _selectedEvents = ValueNotifier(_getEventsForDay(_selectedDay!));
   }
 
-  void _fetchEvents() {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
-      _eventService.getEventsForManager(currentUser.uid).listen((events) {
-        setState(() {
-          _events = events;
-          _selectedEvents = _getEventsForDay(
-            _selectedDay!,
-          ); // Update selected events on data change
-        });
-      });
-    }
+  @override
+  void dispose() {
+    _selectedEvents.dispose();
+    super.dispose();
   }
 
   List<Event> _getEventsForDay(DateTime day) {
-    return _events
-        .where(
-          (event) =>
-              event.date.year == day.year &&
-              event.date.month == day.month &&
-              event.date.day == day.day,
-        )
-        .toList();
+    return _eventsByDay[DateTime(day.year, day.month, day.day)] ?? [];
   }
 
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
-    setState(() {
-      _selectedDay = selectedDay;
-      _focusedDay = focusedDay;
-      _selectedEvents = _getEventsForDay(selectedDay);
-    });
+    if (!isSameDay(_selectedDay, selectedDay)) {
+      setState(() {
+        _selectedDay = selectedDay;
+        _focusedDay = focusedDay;
+      });
+      _selectedEvents.value = _getEventsForDay(selectedDay);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        TableCalendar(
-          firstDay: DateTime.utc(2010, 10, 16),
-          lastDay: DateTime.utc(2030, 3, 14),
-          focusedDay: _focusedDay,
-          calendarFormat: _calendarFormat,
-          selectedDayPredicate: (day) {
-            return isSameDay(_selectedDay, day);
-          },
-          onDaySelected: _onDaySelected,
-          onFormatChanged: (format) {
-            if (_calendarFormat != format) {
-              setState(() {
-                _calendarFormat = format;
-              });
-            }
-          },
-          onPageChanged: (focusedDay) {
-            _focusedDay = focusedDay;
-          },
-          eventLoader: _getEventsForDay,
-          calendarBuilders: CalendarBuilders(
-            markerBuilder: (context, date, events) {
-              if (events.isNotEmpty) {
-                return Positioned(
-                  right: 1,
-                  bottom: 1,
-                  child: _buildEventsMarker(date, events.cast<Event>()),
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-        ),
-        const SizedBox(height: 8.0),
-        Expanded(
-          child: ListView.builder(
-            itemCount: _selectedEvents.length,
-            itemBuilder: (context, index) {
-              final event = _selectedEvents[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 8.0,
-                  vertical: 4.0,
-                ),
-                child: ListTile(
-                  title: Text(event.title),
-                  subtitle: Text(event.time.format(context)),
-                  onTap: () {
-                    context.go('/event-details/${event.id}');
-                  },
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
+    return StreamBuilder<List<Event>>(
+      stream: Provider.of<EventService>(context).getEvents(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
 
-  Widget _buildEventsMarker(DateTime date, List<Event> events) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Theme.of(context).colorScheme.secondary,
-      ),
-      width: 16.0,
-      height: 16.0,
-      child: Center(
-        child: Text(
-          '${events.length}',
-          style: const TextStyle(color: Colors.white, fontSize: 12.0),
-        ),
-      ),
+        final allEvents = snapshot.data ?? [];
+        _eventsByDay = {};
+        for (var event in allEvents) {
+          if (event.startDate != null) {
+            final day =
+                DateTime(event.startDate!.year, event.startDate!.month, event.startDate!.day);
+            if (_eventsByDay[day] == null) {
+              _eventsByDay[day] = [];
+            }
+            _eventsByDay[day]!.add(event);
+          }
+        }
+        if (_selectedDay != null) {
+          _selectedEvents.value = _getEventsForDay(_selectedDay!);
+        }
+
+        return Column(
+          children: [
+            TableCalendar<Event>(
+              firstDay: DateTime.utc(2020, 1, 1),
+              lastDay: DateTime.utc(2030, 12, 31),
+              focusedDay: _focusedDay,
+              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+              onDaySelected: _onDaySelected,
+              eventLoader: _getEventsForDay,
+              calendarStyle: const CalendarStyle(
+                todayDecoration: BoxDecoration(
+                  color: Colors.blueAccent,
+                  shape: BoxShape.circle,
+                ),
+                selectedDecoration: BoxDecoration(
+                  color: Colors.indigo,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              onPageChanged: (focusedDay) {
+                _focusedDay = focusedDay;
+              },
+            ),
+            const SizedBox(height: 8.0),
+            Expanded(
+              child: ValueListenableBuilder<List<Event>>(
+                valueListenable: _selectedEvents,
+                builder: (context, value, _) {
+                  return ListView.builder(
+                    itemCount: value.length,
+                    itemBuilder: (context, index) {
+                      final event = value[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 12.0, vertical: 4.0),
+                        child: ListTile(
+                          title: Text(event.name),
+                          subtitle: Text(
+                              '${event.startDate != null ? DateFormat.jm().format(event.startDate!) : 'TBA'} at ${event.location}'),
+                          onTap: () {
+                            // Navigate to event details
+                          },
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

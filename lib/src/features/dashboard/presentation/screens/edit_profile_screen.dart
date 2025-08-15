@@ -30,56 +30,97 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Edit Profile')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: 600,
+          ), // Max width for content
+          child: Card(
+            elevation: Theme.of(context).cardTheme.elevation,
+            shape: Theme.of(context).cardTheme.shape,
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment
+                      .stretch, // Stretch children horizontally
+                  children: [
+                    Text(
+                      'Edit Profile',
+                      style: textTheme.headlineMedium?.copyWith(
+                        color: colorScheme.primary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Name',
+                        prefixIcon: Icon(Icons.person),
+                      ), // Styling handled by InputDecorationTheme
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your name';
+                        }
+                        return null;
+                      },
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurface,
+                      ),
+                      cursorColor: colorScheme.primary,
+                    ),
+                    const SizedBox(height: 32),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (_formKey.currentState!.validate()) {
+                          if (currentUser != null) {
+                            await currentUser!.updateDisplayName(
+                              _nameController.text,
+                            );
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Profile Updated!',
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    color: colorScheme.onPrimary,
+                                  ),
+                                ),
+                                backgroundColor: colorScheme.primary,
+                              ),
+                            );
+                            if (!context.mounted) return;
+                            context.pop(); // Pop back to the profile page
+                          } else {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'User not logged in.',
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    color: colorScheme.onError,
+                                  ),
+                                ),
+                                backgroundColor: colorScheme.error,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text('Save Changes'),
+                    ),
+                  ],
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your name';
-                  }
-                  return null;
-                },
               ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: () async {
-                  if (_formKey.currentState!.validate()) {
-                    if (currentUser != null) {
-                      await currentUser!.updateDisplayName(
-                        _nameController.text,
-                      );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Profile Updated!')),
-                      );
-                      context.pop();
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('User not logged in.')),
-                      );
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 48,
-                    vertical: 16,
-                  ),
-                ),
-                child: const Text('Save Changes'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

@@ -1,44 +1,55 @@
-class Budget {
-  final String id;
-  final String eventId;
-  final double totalBudget;
-  final double totalSpent;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-  Budget({
-    required this.id,
-    required this.eventId,
-    required this.totalBudget,
-    required this.totalSpent,
-  });
+class Budget {
+  final double totalBudget;
+  final List<Expense> expenses;
+  double get totalSpent => expenses.fold(0, (currentSum, item) => currentSum + item.amount);
+  double get budgetLeft => totalBudget - totalSpent;
+  bool get isOverBudget => totalSpent > totalBudget;
+  double get percentageSpent => totalBudget > 0 ? (totalSpent / totalBudget).clamp(0, 1) : 0;
+
+  Budget({required this.totalBudget, this.expenses = const []});
+
+  factory Budget.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    var expensesData = data['expenses'] as List<dynamic>?;
+    List<Expense> expensesList = expensesData != null
+        ? expensesData.map((e) => Expense.fromMap(e)).toList()
+                : [];
+    return Budget(
+      totalBudget: (data['totalBudget'] as num).toDouble(),
+      expenses: expensesList,
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'totalBudget': totalBudget,
+      'expenses': expenses.map((e) => e.toMap()).toList(),
+    };
+  }
+}
+
+class Expense {
+  final String description;
+  final double amount;
+  final DateTime date;
+
+  Expense({required this.description, required this.amount, required this.date});
+
+  factory Expense.fromMap(Map<String, dynamic> map) {
+    return Expense(
+      description: map['description'] as String,
+      amount: (map['amount'] as num).toDouble(),
+      date: (map['date'] as Timestamp).toDate(),
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
-      'eventId': eventId,
-      'totalBudget': totalBudget,
-      'totalSpent': totalSpent,
+      'description': description,
+      'amount': amount,
+      'date': Timestamp.fromDate(date),
     };
-  }
-
-  factory Budget.fromMap(Map<String, dynamic> map, String id) {
-    return Budget(
-      id: id,
-      eventId: map['eventId'] ?? '',
-      totalBudget: (map['totalBudget'] ?? 0.0).toDouble(),
-      totalSpent: (map['totalSpent'] ?? 0.0).toDouble(),
-    );
-  }
-
-  Budget copyWith({
-    String? id,
-    String? eventId,
-    double? totalBudget,
-    double? totalSpent,
-  }) {
-    return Budget(
-      id: id ?? this.id,
-      eventId: eventId ?? this.eventId,
-      totalBudget: totalBudget ?? this.totalBudget,
-      totalSpent: totalSpent ?? this.totalSpent,
-    );
   }
 }

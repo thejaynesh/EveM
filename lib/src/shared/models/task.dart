@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Task {
-  final String id;
+  final String? id; // Made nullable
   final String eventId;
   final String title;
   final String description;
@@ -9,7 +9,7 @@ class Task {
   final DateTime? dueDate;
 
   Task({
-    required this.id,
+    this.id, // Removed required
     required this.eventId,
     required this.title,
     this.description = '',

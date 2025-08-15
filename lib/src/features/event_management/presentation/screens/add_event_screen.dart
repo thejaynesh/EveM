@@ -1,12 +1,15 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:myapp/src/shared/models/event.dart';
-import '../../data/event_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:path/path.dart' as path;
 import 'dart:developer' as developer;
+
+import '../../../../shared/models/event.dart';
+import '../../data/event_service.dart';
 
 class AddEventScreen extends StatefulWidget {
   const AddEventScreen({super.key});
@@ -17,143 +20,222 @@ class AddEventScreen extends StatefulWidget {
 
 class AddEventScreenState extends State<AddEventScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _dateController = TextEditingController();
-  final TextEditingController _endDateController = TextEditingController();
-  final TextEditingController _timeController = TextEditingController();
-  final TextEditingController _organizerNameController =
-      TextEditingController();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _startDateController = TextEditingController();
+  final _endDateController = TextEditingController();
 
-  DateTime? _selectedDate;
-  DateTime? _selectedEndDate;
-  TimeOfDay? _selectedTime;
-  bool _isPublished = false;
-  File? _selectedImage;
-
-  final EventService _eventService = EventService();
+  DateTime? _startDate;
+  DateTime? _endDate;
+  File? _imageFile;
+  bool _isLoading = false;
 
   @override
   void dispose() {
-    _titleController.dispose();
+    _nameController.dispose();
     _descriptionController.dispose();
-    _dateController.dispose();
+    _locationController.dispose();
+    _startDateController.dispose();
     _endDateController.dispose();
-    _timeController.dispose();
-    _organizerNameController.dispose();
     super.dispose();
   }
 
   Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
-    if (image != null) {
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
       setState(() {
-        _selectedImage = File(image.path);
+        _imageFile = File(pickedFile.path);
       });
     }
   }
 
-  Future<String?> _uploadImage() async {
-    if (_selectedImage == null) return null;
-
-    final String imageName = path.basename(_selectedImage!.path);
-    final firebase_storage.Reference storageRef = firebase_storage
-        .FirebaseStorage.instance
-        .ref()
-        .child('event_images/$imageName');
-
+  Future<String?> _uploadImage(File image) async {
     try {
-      await storageRef.putFile(_selectedImage!);
-      final String downloadURL = await storageRef.getDownloadURL();
-      return downloadURL;
-    } catch (e, s) {
-      developer.log(
-        'Error uploading image',
-        name: 'add_event_screen',
-        error: e,
-        stackTrace: s,
-      );
+      final fileName = path.basename(image.path);
+      final destination = 'event_images/$fileName';
+      final ref = firebase_storage.FirebaseStorage.instance.ref(destination);
+      await ref.putFile(image);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      developer.log('Error uploading image: $e', name: 'AddEventScreen');
       return null;
     }
   }
+
+  Future<void> _selectDate(BuildContext context, bool isStartDate) async {
+    final initialDate = isStartDate
+        ? (_startDate ?? DateTime.now())
+        : (_endDate ?? _startDate ?? DateTime.now());
+    final firstDate = DateTime.now();
+    final lastDate = DateTime(2101);
+
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+    );
+
+    if (pickedDate != null) {
+      final pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(initialDate),
+      );
+      if (pickedTime != null) {
+        final fullDateTime = DateTime(pickedDate.year, pickedDate.month,
+            pickedDate.day, pickedTime.hour, pickedTime.minute);
+        setState(() {
+          if (isStartDate) {
+            _startDate = fullDateTime;
+            _startDateController.text =
+                DateFormat.yMd().add_jm().format(_startDate!);
+            if (_endDateController.text.isNotEmpty) {
+              _formKey.currentState?.validate();
+            }
+          } else {
+            _endDate = fullDateTime;
+            _endDateController.text =
+                DateFormat.yMd().add_jm().format(_endDate!);
+            _formKey.currentState?.validate();
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _addEvent() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    String? imageUrl;
+    if (_imageFile != null) {
+      imageUrl = await _uploadImage(_imageFile!);
+      if (imageUrl == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Image upload failed. Please try again.')),
+          );
+          setState(() => _isLoading = false);
+        }
+        return;
+      }
+    }
+
+    final newEvent = Event(
+      name: _nameController.text,
+      description: _descriptionController.text,
+      location: _locationController.text,
+      startDate: _startDate!,
+      endDate: _endDate!,
+      imageUrl: imageUrl ?? '',
+    );
+
+    try {
+      final eventService = Provider.of<EventService>(context, listen: false);
+      await eventService.addEvent(newEvent);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Event added successfully!')),
+        );
+        if (GoRouter.of(context).canPop()) {
+          context.pop();
+        }
+      }
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to add event.',
+        name: 'AddEventScreen',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('An error occurred while adding the event: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add New Event'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            context.pop(); // Go back to the previous screen
-          },
-        ),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: ListView(
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Event Title',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.title),
+              Center(
+                child: Column(
+                  children: [
+                    Container(
+                      height: 200,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: _imageFile != null
+                          ? Image.file(_imageFile!, fit: BoxFit.cover)
+                          : const Center(child: Text('No Image Selected')),
+                    ),
+                    const SizedBox(height: 10),
+                    TextButton.icon(
+                      icon: const Icon(Icons.image),
+                      label: const Text('Select Image'),
+                      onPressed: _pickImage,
+                    ),
+                  ],
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a title';
-                  }
-                  return null;
-                },
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(labelText: 'Event Name'),
+                validator: (value) =>
+                    value!.isEmpty ? 'Please enter event name' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Event Description',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.description),
-                ),
+                decoration: const InputDecoration(labelText: 'Description'),
                 maxLines: 3,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a description';
-                  }
-                  return null;
-                },
+                validator: (value) =>
+                    value!.isEmpty ? 'Please enter a description' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
-                controller: _dateController,
-                decoration: const InputDecoration(
-                  labelText: 'Event Start Date',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.calendar_today),
-                ),
+                controller: _locationController,
+                decoration: const InputDecoration(labelText: 'Location'),
+                validator: (value) =>
+                    value!.isEmpty ? 'Please enter a location' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _startDateController,
+                decoration:
+                    const InputDecoration(labelText: 'Start Date & Time'),
                 readOnly: true,
-                onTap: () async {
-                  DateTime? pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: _selectedDate ?? DateTime.now(),
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime(2101),
-                  );
-                  if (pickedDate != null) {
-                    setState(() {
-                      _selectedDate = pickedDate;
-                      _dateController.text =
-                          "${pickedDate.toLocal()}".split(' ')[0];
-                    });
-                  }
-                },
+                onTap: () => _selectDate(context, true),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter a date';
+                    return 'Please select a start date';
                   }
                   return null;
                 },
@@ -161,133 +243,34 @@ class AddEventScreenState extends State<AddEventScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _endDateController,
-                decoration: const InputDecoration(
-                  labelText: 'Event End Date',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.calendar_today),
-                ),
+                decoration: const InputDecoration(labelText: 'End Date & Time'),
                 readOnly: true,
-                onTap: () async {
-                  DateTime? pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: _selectedEndDate ?? _selectedDate ?? DateTime.now(),
-                    firstDate: _selectedDate ?? DateTime.now(),
-                    lastDate: DateTime(2101),
-                  );
-                  if (pickedDate != null) {
-                    setState(() {
-                      _selectedEndDate = pickedDate;
-                      _endDateController.text =
-                          "${pickedDate.toLocal()}".split(' ')[0];
-                    });
-                  }
-                },
+                onTap: () => _selectDate(context, false),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter a date';
+                    return 'Please select an end date';
+                  }
+                  if (_startDate != null &&
+                      _endDate != null &&
+                      !_endDate!.isAfter(_startDate!)) {
+                    return 'End date must be after start date';
                   }
                   return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _timeController,
-                decoration: const InputDecoration(
-                  labelText: 'Event Time',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.access_time),
-                ),
-                readOnly: true,
-                onTap: () async {
-                  TimeOfDay? pickedTime = await showTimePicker(
-                    context: context,
-                    initialTime: _selectedTime ?? TimeOfDay.now(),
-                  );
-                  if (pickedTime != null) {
-                    setState(() {
-                      _selectedTime = pickedTime;
-                      _timeController.text = pickedTime.format(context);
-                    });
-                  }
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a time';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _organizerNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Organizer Name',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter organizer name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _pickImage,
-                child: const Text('Pick Image'),
-              ),
-              if (_selectedImage != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Image.file(
-                    _selectedImage!,
-                    height: 100,
-                  ),
-                ),
-              const SizedBox(height: 16),
-              SwitchListTile(
-                title: const Text('Publish Event'),
-                value: _isPublished,
-                onChanged: (bool value) {
-                  setState(() {
-                    _isPublished = value;
-                  });
                 },
               ),
               const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: () async {
-                  if (_formKey.currentState!.validate()) {
-                    String? imageUrl = await _uploadImage();
-
-                    final newEvent = Event(
-                      title: _titleController.text,
-                      description: _descriptionController.text,
-                      date: _selectedDate!,
-                      endDateTime: _selectedEndDate,
-                      time: _selectedTime!,
-                      isPublished: _isPublished,
-                      imageUrl: imageUrl,
-                      organizerName: _organizerNameController.text,
-                    );
-                    await _eventService.addEvent(newEvent);
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Event Added!')),
-                    );
-                    if (!context.mounted) return;
-                    context.pop(); // Go back to the previous screen
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 48,
-                    vertical: 16,
+              if (_isLoading)
+                const Center(child: CircularProgressIndicator())
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _addEvent,
+                    style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16)),
+                    child: const Text('Add Event'),
                   ),
                 ),
-                child: const Text('Save Event'),
-              ),
             ],
           ),
         ),

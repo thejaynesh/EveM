@@ -5,10 +5,7 @@ import 'package:myapp/src/features/auth/data/auth_service.dart';
 class ManagerScaffold extends StatelessWidget {
   final Widget child;
 
-  const ManagerScaffold({
-    super.key,
-    required this.child,
-  });
+  const ManagerScaffold({super.key, required this.child});
 
   int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.toString();

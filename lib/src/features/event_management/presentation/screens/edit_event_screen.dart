@@ -1,105 +1,214 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:myapp/src/shared/models/event.dart';
-import '../../data/event_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:path/path.dart' as path;
 import 'dart:developer' as developer;
 
-class EditEventScreen extends StatefulWidget {
-  final Event event;
+import '../../../../shared/models/event.dart';
+import '../../data/event_service.dart';
 
-  const EditEventScreen({super.key, required this.event});
+class EditEventScreen extends StatefulWidget {
+  final String eventId;
+
+  const EditEventScreen({super.key, required this.eventId});
 
   @override
-  EditEventScreenState createState() => EditEventScreenState();
+  State<EditEventScreen> createState() => _EditEventScreenState();
 }
 
-class EditEventScreenState extends State<EditEventScreen> {
+class _EditEventScreenState extends State<EditEventScreen> {
+  late final EventService _eventService;
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _titleController;
+
+  late TextEditingController _nameController;
   late TextEditingController _descriptionController;
-  late TextEditingController _dateController;
+  late TextEditingController _locationController;
+  late TextEditingController _startDateController;
   late TextEditingController _endDateController;
-  late TextEditingController _timeController;
-  late TextEditingController _organizerNameController;
 
-  DateTime? _selectedDate;
-  DateTime? _selectedEndDate;
-  TimeOfDay? _selectedTime;
-  bool _isPublished = false;
-  File? _selectedImage;
-  String? _imageUrl;
+  DateTime? _startDate;
+  DateTime? _endDate;
+  File? _imageFile;
+  String? _networkImageUrl;
 
-  final EventService _eventService = EventService();
+  bool _isLoading = true;
+  bool _isSaving = false;
+  Event? _event;
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.event.title);
-    _descriptionController = TextEditingController(
-      text: widget.event.description,
-    );
-    _selectedDate = widget.event.date;
-    _endDateController = TextEditingController(
-        text: widget.event.endDateTime != null
-            ? "${widget.event.endDateTime!.toLocal()}".split(' ')[0]
-            : "");
-    _dateController = TextEditingController(
-      text: "${_selectedDate!.toLocal()}".split(' ')[0],
-    );
-    _timeController = TextEditingController(text: widget.event.time.format(context));
-    _organizerNameController =
-        TextEditingController(text: widget.event.organizerName ?? '');
-    _isPublished = widget.event.isPublished;
-    _imageUrl = widget.event.imageUrl;
+    _eventService = Provider.of<EventService>(context, listen: false);
+    _initializeControllers();
+    _fetchEventDetails();
+  }
+
+  void _initializeControllers() {
+    _nameController = TextEditingController();
+    _descriptionController = TextEditingController();
+    _locationController = TextEditingController();
+    _startDateController = TextEditingController();
+    _endDateController = TextEditingController();
+  }
+
+  Future<void> _fetchEventDetails() async {
+    try {
+      final event = await _eventService.getEventById(widget.eventId);
+      if (event != null && mounted) {
+        setState(() {
+          _event = event;
+          _nameController.text = event.name;
+          _descriptionController.text = event.description;
+          _locationController.text = event.location;
+          _startDate = event.startDate;
+          _endDate = event.endDate;
+          if (_startDate != null) {
+            _startDateController.text = DateFormat.yMd().add_jm().format(_startDate!);
+          }
+          if (_endDate != null) {
+            _endDateController.text = DateFormat.yMd().add_jm().format(_endDate!);
+          }
+          _networkImageUrl = event.imageUrl;
+          _isLoading = false;
+        });
+      } else {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Event not found.')),
+        );
+        context.pop();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      developer.log('Error fetching event: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load event details: $e')),
+      );
+      context.pop();
+    }
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
+    _nameController.dispose();
     _descriptionController.dispose();
-    _dateController.dispose();
+    _locationController.dispose();
+    _startDateController.dispose();
     _endDateController.dispose();
-    _timeController.dispose();
-    _organizerNameController.dispose();
     super.dispose();
   }
 
   Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
-    if (image != null) {
+    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
       setState(() {
-        _selectedImage = File(image.path);
+        _imageFile = File(pickedFile.path);
       });
     }
   }
 
-  Future<String?> _uploadImage() async {
-    if (_selectedImage == null) return _imageUrl;
-
-    final String imageName = path.basename(_selectedImage!.path);
-    final firebase_storage.Reference storageRef = firebase_storage
-        .FirebaseStorage.instance
-        .ref()
-        .child('event_images/$imageName');
-
+  Future<String?> _uploadImage(File image) async {
     try {
-      await storageRef.putFile(_selectedImage!);
-      final String downloadURL = await storageRef.getDownloadURL();
-      return downloadURL;
-    } catch (e, s) {
-      developer.log(
-        'Error uploading image',
-        name: 'edit_event_screen',
-        error: e,
-        stackTrace: s,
-      );
+      final fileName = path.basename(image.path);
+      final destination = 'event_images/$fileName';
+      final ref = firebase_storage.FirebaseStorage.instance.ref(destination);
+      await ref.putFile(image);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      developer.log('Error uploading image: $e');
       return null;
+    }
+  }
+
+  Future<void> _selectDate(BuildContext context, bool isStartDate) async {
+    final initialDate = isStartDate ? (_startDate ?? DateTime.now()) : (_endDate ?? _startDate ?? DateTime.now());
+    final firstDate = DateTime(2000);
+    final lastDate = DateTime(2101);
+
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+    );
+
+    if (pickedDate != null) {
+      if (!mounted) return;
+      final pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(initialDate),
+      );
+      if (pickedTime != null) {
+        final fullDateTime = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
+        setState(() {
+          if (isStartDate) {
+            _startDate = fullDateTime;
+            _startDateController.text = DateFormat.yMd().add_jm().format(_startDate!);
+            if (_endDate != null && _endDate!.isBefore(_startDate!)) {
+              _endDate = null;
+              _endDateController.text = '';
+            }
+          } else {
+            _endDate = fullDateTime;
+            _endDateController.text = DateFormat.yMd().add_jm().format(_endDate!);
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _updateEvent() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+      String? imageUrl = _networkImageUrl;
+
+      if (_imageFile != null) {
+        imageUrl = await _uploadImage(_imageFile!);
+      }
+
+      if (imageUrl == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to upload image. Please try again.')),
+        );
+        setState(() => _isSaving = false);
+        return;
+      }
+
+      final updatedEvent = Event(
+        id: widget.eventId,
+        name: _nameController.text,
+        description: _descriptionController.text,
+        location: _locationController.text,
+        startDate: _startDate!,
+        endDate: _endDate!,
+        imageUrl: imageUrl,
+      );
+
+      try {
+        await _eventService.updateEvent(updatedEvent);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Event updated successfully!')),
+        );
+        context.go('/manager/event-details/${widget.eventId}');
+      } catch (e) {
+        developer.log('Error updating event: $e');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update event: $e')),
+        );
+      } finally {
+        if (mounted) {
+          setState(() => _isSaving = false);
+        }
+      }
     }
   }
 
@@ -108,227 +217,105 @@ class EditEventScreenState extends State<EditEventScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Event'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            context.pop(); // Go back to the previous screen
-          },
-        ),
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: ListView(
-                children: [
-                  TextFormField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Event Title',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.title),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _event == null
+              ? const Center(child: Text('Event could not be loaded.'))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Image Preview and Picker
+                        Center(
+                          child: Column(
+                            children: [
+                              Container(
+                                height: 200,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: _imageFile != null
+                                    ? Image.file(_imageFile!, fit: BoxFit.cover)
+                                    : _networkImageUrl != null
+                                        ? Image.network(_networkImageUrl!, fit: BoxFit.cover)
+                                        : const Center(child: Text('No Image Selected')),
+                              ),
+                              const SizedBox(height: 10),
+                              TextButton.icon(
+                                icon: const Icon(Icons.image),
+                                label: const Text('Change Image'),
+                                onPressed: _pickImage,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        // Form Fields
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(labelText: 'Event Name'),
+                          validator: (value) => value!.isEmpty ? 'Please enter event name' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _descriptionController,
+                          decoration: const InputDecoration(labelText: 'Description'),
+                          maxLines: 3,
+                          validator: (value) => value!.isEmpty ? 'Please enter a description' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _locationController,
+                          decoration: const InputDecoration(labelText: 'Location'),
+                          validator: (value) => value!.isEmpty ? 'Please enter a location' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _startDateController,
+                          decoration: const InputDecoration(labelText: 'Start Date & Time'),
+                          readOnly: true,
+                          onTap: () => _selectDate(context, true),
+                          validator: (value) => value!.isEmpty ? 'Please select a start date' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _endDateController,
+                          decoration: const InputDecoration(labelText: 'End Date & Time'),
+                          readOnly: true,
+                          onTap: () => _selectDate(context, false),
+                           validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please select an end date';
+                            }
+                            if (_startDate != null && _endDate != null && _endDate!.isBefore(_startDate!)) {
+                              return 'End date must be after start date';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 32),
+                        // Save Button
+                        if (_isSaving)
+                          const Center(child: CircularProgressIndicator())
+                        else
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _updateEvent,
+                              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                              child: const Text('Save Changes'),
+                            ),
+                          ),
+                      ],
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a title';
-                      }
-                      return null;
-                    },
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Event Description',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.description),
-                    ),
-                    maxLines: 3,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a description';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _dateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Event Start Date',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.calendar_today),
-                    ),
-                    readOnly: true,
-                    onTap: () async {
-                      DateTime? pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: _selectedDate ?? DateTime.now(),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime(2101),
-                      );
-                      if (pickedDate != null) {
-                        setState(() {
-                          _selectedDate = pickedDate;
-                          _dateController.text =
-                              "${_selectedDate!.toLocal()}".split(' ')[0];
-                        });
-                      }
-                    },
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a date';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _endDateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Event End Date',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.calendar_today),
-                    ),
-                    readOnly: true,
-                    onTap: () async {
-                      DateTime? pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: _selectedEndDate ?? _selectedDate ?? DateTime.now(),
-                        firstDate: _selectedDate ?? DateTime.now(),
-                        lastDate: DateTime(2101),
-                      );
-                      if (pickedDate != null) {
-                        setState(() {
-                          _selectedEndDate = pickedDate;
-                          _endDateController.text =
-                              "${_selectedEndDate!.toLocal()}".split(' ')[0];
-                        });
-                      }
-                    },
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a date';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _timeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Event Time',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.access_time),
-                    ),
-                    readOnly: true,
-                    onTap: () async {
-                      TimeOfDay? pickedTime = await showTimePicker(
-                        context: context,
-                        initialTime: _selectedTime ?? TimeOfDay.now(),
-                      );
-                      if (pickedTime != null) {
-                        if (!mounted) return;
-                        setState(() {
-                          _selectedTime = pickedTime;
-                          _timeController.text = pickedTime.format(context);
-                        });
-                      }
-                    },
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a time';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _organizerNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Organizer Name',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter organizer name';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _pickImage,
-                    child: const Text('Pick Image'),
-                  ),
-                  if (_selectedImage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Image.file(
-                        _selectedImage!,
-                        height: 100,
-                      ),
-                    )
-                  else if (_imageUrl != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Image.network(
-                        _imageUrl!,
-                        height: 100,
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                  SwitchListTile(
-                    title: const Text('Publish Event'),
-                    value: _isPublished,
-                    onChanged: (bool value) {
-                      setState(() {
-                        _isPublished = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: () async {
-                      if (_formKey.currentState!.validate()) {
-                        String? imageUrl = await _uploadImage();
-                        final updatedEvent = widget.event.copyWith(
-                          title: _titleController.text,
-                          description: _descriptionController.text,
-                          date: _selectedDate!,
-                          endDateTime: _selectedEndDate,
-                          time: _selectedTime!,
-                          isPublished: _isPublished,
-                          imageUrl: imageUrl,
-                          organizerName: _organizerNameController.text,
-                        );
-                        await _eventService.updateEvent(updatedEvent);
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Event Updated!')),
-                        );
-                        if (!mounted) return;
-                        context.pop();
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 48,
-                        vertical: 16,
-                      ),
-                    ),
-                    child: const Text('Save Changes'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+                ),
     );
   }
 }

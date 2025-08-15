@@ -12,7 +12,7 @@ This section documents the style, design, and features of the EveM application.
 
 *   **Structure**: The project follows a feature-first layered architecture. Code is organized into `presentation`, `domain`, and `data` layers within each feature folder.
 *   **State Management**: `provider` is used for state management and dependency injection.
-*   **Navigation**: `go_router` is used for declarative routing, enabling deep linking and a structured navigation system. The app is divided into public, manager-authenticated, and attendee-authenticated routes using `ShellRoute`.
+*   **Navigation**: `go_router` is used for declarative routing, enabling deep linking and a structured navigation system.
 *   **UI/UX**: The application adheres to Material Design 3 principles, featuring a modern design with expressive typography, a vibrant color palette, and interactive, mobile-responsive components.
 
 ### 2.2. Implemented Features
@@ -30,21 +30,28 @@ This section documents the style, design, and features of the EveM application.
     *   **Unified Scaffold**: A consistent `ManagerScaffold` is used across all manager-side screens, featuring a navigation rail with "Dashboard," "Add Event," and "Profile" links.
     *   **Logout**: A dedicated logout button is now present at the bottom of the manager's navigation rail for easy access.
     *   **Event Management**: Full CRUD functionality for events, including a "Publish" switch.
-    *   **Dashboard**: Includes a calendar view of events, an overview of managed events, and detailed views with budget, task, and collaborator management.
+    *   **Dashboard**:
+        *   **Analytics**: A dynamic line chart displays the number of new event registrations per day over the last 7 days. The chart now uses abbreviated day-of-the-week labels (e.g., "Mon," "Tue") for clarity and displays whole numbers on the Y-axis.
+        *   **Event Overview**: Each event card now displays the total number of registered attendees.
+        *   Includes a calendar view of events and detailed views with budget, task, and collaborator management.
 *   **Attendee Experience**:
-    *   **Unified Scaffold**: A consistent `AttendeeScaffold` is used across all attendee-side screens, featuring a navigation rail with "Dashboard," and "Profile" links.
+    *   **Unified Scaffold**: A consistent `AttendeeScaffold` is used across all attendee-side screens, featuring a navigation rail with "Dashboard," "Profile," "My Tickets," and "Notifications" links.
     *   **Logout**: A dedicated logout button is now present at the bottom of the attendee's navigation rail for easy access.
-    *   **Event Discovery**: Attendees can search and view all *published* events.
+    *   **Event Discovery**: Attendees can search and view all *published* events. A search bar allows for real-time filtering of events by name or location.
     *   **Event Details & Registration**: View detailed event information and register for events.
     *   **Authenticated Dashboard**: Logged-in attendees have a dashboard to view their registrations, notifications, and profile.
-*   **Navigation Fix**: The GoRouter navigation has been fixed and the selected index is now passed correctly to the `PublicScaffold`, `ManagerScaffold`, and `AttendeeScaffold` widgets.
+*   **Navigation Fix**:
+    *   The GoRouter navigation has been fixed and the selected index is now passed correctly to the `PublicScaffold`, `ManagerScaffold`, and `AttendeeScaffold` widgets.
+    *   A missing route for `/attendee/notifications` has been added.
+*   **Task Management**:
+    *   Tasks marked as complete are now visually struck through.
 
 ### 2.3. Design System
 
-*   **Color Palette**: A modern color scheme generated from a `Colors.deepPurple` seed.
-*   **Typography**: `google_fonts` (Oswald, Roboto, Open Sans) are used for a clear typographic hierarchy.
+*   **Color Palette**: A modern and vibrant color scheme, generated from a `0xFF1E88E5` (Deep Sky Blue) seed, ensuring contrasting and harmonious color pairs for text and backgrounds. Includes a light grey background for the light theme and darker grey tones for the dark theme.
+*   **Typography**: `google_fonts` (Poppins, Open Sans) are used for a clear and modern typographic hierarchy. Text colors are carefully chosen for optimal contrast.
 *   **Iconography**: Material Design icons enhance usability and visual communication.
-*   **Components**: Reusable and themed widgets are used for UI consistency.
+*   **Components**: Reusable and themed widgets are used for UI consistency, including enhanced buttons with elevated effects and cards with deeper shadows and rounded borders.
 
 ## 3. Current Plan: Final Polish & Future Enhancements
 
@@ -57,7 +64,7 @@ This plan outlines the final steps for the application's development, focusing o
     *   Add loading indicators where needed for a smoother user experience during data fetching.
     *   Ensure all error messages are user-friendly.
     *   Verify that the application is fully responsive and accessible on both mobile and web platforms.
-    *   Conduct thorough end-to-end testing of all user flows (Public, Attendee, and Manager).
+    *   Conduct thorough end-to--end testing of all user flows (Public, Attendee, and Manager).
 
 2.  **Future Enhancements (Post-MVP)**:
     *   Implement more robust security using Firebase Security Rules to protect data at the backend.

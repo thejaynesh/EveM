@@ -1,45 +1,38 @@
 class Collaborator {
   final String id;
-  final String eventId;
-  final String userId;
-  final String email;
+  final String name;
   final String role;
 
   Collaborator({
     required this.id,
-    required this.eventId,
-    required this.userId,
-    required this.email,
+    required this.name,
     required this.role,
   });
 
-  Map<String, dynamic> toMap() {
-    return {'eventId': eventId, 'userId': userId, 'email': email, 'role': role};
+  Collaborator copyWith({
+    String? id,
+    String? name,
+    String? role,
+  }) {
+    return Collaborator(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      role: role ?? this.role,
+    );
   }
 
   factory Collaborator.fromMap(Map<String, dynamic> map, String id) {
     return Collaborator(
       id: id,
-      eventId: map['eventId'] ?? '',
-      userId: map['userId'] ?? '',
-      email: map['email'] ?? '',
-      role: map['role'] ?? '',
+      name: map['name'],
+      role: map['role'],
     );
   }
 
-  Collaborator copyWith({
-    String? id,
-    String? eventId,
-    String? userId,
-    String? email,
-    String? role,
-  }) {
-    return Collaborator(
-      id: id ?? this.id,
-      eventId: eventId ?? this.eventId,
-      userId: userId ?? this.userId,
-      email: email ?? this.email,
-      role: role ?? this.role,
-    );
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'role': role,
+    };
   }
 }

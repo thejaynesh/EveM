@@ -11,7 +11,8 @@ class CollaboratorService {
         .snapshots()
         .map((snapshot) {
           return snapshot.docs.map((doc) {
-            return Collaborator.fromMap(doc.data(), doc.id);
+            final data = doc.data();
+            return Collaborator.fromMap(data, doc.id);
           }).toList();
         });
   }

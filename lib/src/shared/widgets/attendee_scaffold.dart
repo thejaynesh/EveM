@@ -5,17 +5,16 @@ import 'package:myapp/src/features/auth/data/auth_service.dart';
 class AttendeeScaffold extends StatelessWidget {
   final Widget child;
 
-  const AttendeeScaffold({
-    super.key,
-    required this.child,
-  });
+  const AttendeeScaffold({super.key, required this.child});
 
   int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.toString();
-    if (location.startsWith('/attendee/tickets')) {
+    if (location.startsWith('/attendee/notifications')) {
       return 1;
-    } else if (location.startsWith('/attendee/profile')) {
+    } else if (location.startsWith('/attendee/tickets')) {
       return 2;
+    } else if (location.startsWith('/attendee/profile')) {
+      return 3;
     }
     return 0;
   }
@@ -37,9 +36,12 @@ class AttendeeScaffold extends StatelessWidget {
                   context.go('/attendee/dashboard');
                   break;
                 case 1:
-                  context.go('/attendee/tickets');
+                  context.go('/attendee/notifications');
                   break;
                 case 2:
+                  context.go('/attendee/tickets');
+                  break;
+                case 3:
                   context.go('/attendee/profile');
                   break;
               }
@@ -48,9 +50,14 @@ class AttendeeScaffold extends StatelessWidget {
             extended: true,
             destinations: const [
               NavigationRailDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                selectedIcon: Icon(Icons.dashboard),
-                label: Text('Dashboard'),
+                icon: Icon(Icons.explore_outlined),
+                selectedIcon: Icon(Icons.explore),
+                label: Text('Event Discovery'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.notifications_outlined),
+                selectedIcon: Icon(Icons.notifications),
+                label: Text('Notifications'),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.confirmation_number_outlined),

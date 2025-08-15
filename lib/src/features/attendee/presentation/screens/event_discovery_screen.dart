@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:developer' as developer;
+
 import '../../../../shared/models/event.dart';
+import '../../../event_management/data/event_service.dart';
+import '../../data/registration_service.dart';
 
 class EventDiscoveryScreen extends StatefulWidget {
   const EventDiscoveryScreen({super.key});
@@ -11,224 +16,268 @@ class EventDiscoveryScreen extends StatefulWidget {
 }
 
 class _EventDiscoveryScreenState extends State<EventDiscoveryScreen> {
-  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  List<Event> _allEvents = [];
+  List<Event> _filteredEvents = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_filterEvents);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_filterEvents);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _filterEvents() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredEvents = _allEvents.where((event) {
+        return event.name.toLowerCase().contains(query) ||
+               event.location.toLowerCase().contains(query);
+      }).toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: TextField(
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value.toLowerCase();
-              });
-            },
-            decoration: const InputDecoration(
-              hintText: 'Search events...',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(25.0)),
+    final eventService = Provider.of<EventService>(context);
+    final registrationService = Provider.of<RegistrationService>(context, listen: false);
+    final user = FirebaseAuth.instance.currentUser;
+
+    developer.log('Building EventDiscoveryScreen', name: 'EventDiscoveryScreen');
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Discover Events'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search for events...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25.0),
+                ),
               ),
-              filled: true,
-              fillColor: Colors.white,
             ),
           ),
         ),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('events')
-                .where('isPublished', isEqualTo: true)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const Center(child: Text('No events found.'));
-              }
+      ),
+      body: StreamBuilder<List<Event>>(
+        stream: eventService.getEvents(),
+        builder: (context, snapshot) {
+          developer.log('StreamBuilder state: ${snapshot.connectionState}', name: 'EventDiscoveryScreen.StreamBuilder');
 
-              final allEvents = snapshot.data!.docs
-                  .map(
-                    (doc) => Event.fromMap(
-                      doc.data() as Map<String, dynamic>,
-                      id: doc.id,
-                    ),
-                  )
-                  .toList();
+          if (snapshot.hasError) {
+            developer.log('StreamBuilder error: ${snapshot.error}', name: 'EventDiscoveryScreen.StreamBuilder', error: snapshot.error, stackTrace: snapshot.stackTrace);
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'An error occurred. Please check the logs for details.\n${snapshot.error}',
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
 
-              final filteredEvents = allEvents.where((event) {
-                final titleLower = event.title.toLowerCase();
-                final descriptionLower = event.description.toLowerCase();
-                return titleLower.contains(_searchQuery) ||
-                    descriptionLower.contains(_searchQuery);
-              }).toList();
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            developer.log('Stream is waiting for data...', name: 'EventDiscoveryScreen.StreamBuilder');
+            return const Center(child: CircularProgressIndicator());
+          }
 
-              if (filteredEvents.isEmpty) {
-                return const Center(child: Text('No matching events found.'));
-              }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            developer.log('Stream has no data or data is empty.', name: 'EventDiscoveryScreen.StreamBuilder');
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.search_off, size: 80, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'No Events Found',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Check back later for new events!',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
 
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth < 600) {
-                    // Mobile view (ListView)
-                    return ListView.builder(
-                      itemCount: filteredEvents.length,
-                      itemBuilder: (context, index) {
-                        final event = filteredEvents[index];
-                        return Card(
-                          margin: const EdgeInsets.all(8.0),
-                          child: ListTile(
-                            leading: event.imageUrl != null
-                                ? Image.network(
-                                    event.imageUrl!,
-                                    width: 50,
-                                    height: 50,
-                                    fit: BoxFit.cover,
-                                  )
-                                : const Icon(Icons.event),
-                            title: Text(event.title),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${event.date.toLocal().toString().split(' ')[0]} at ${event.time.format(context)}',
+          _allEvents = snapshot.data!;
+          // FIX: Don't call _filterEvents() which calls setState() here.
+          // Instead, filter the events directly.
+          final query = _searchController.text.toLowerCase();
+          final events = _allEvents.where((event) {
+            return event.name.toLowerCase().contains(query) ||
+                   event.location.toLowerCase().contains(query);
+          }).toList();
+
+          developer.log('Stream has data with ${events.length} events. Building grid.', name: 'EventDiscoveryScreen.StreamBuilder');
+
+          if (events.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.search_off, size: 80, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'No Events Found',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Try a different search term.',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return GridView.builder(
+            padding: const EdgeInsets.all(16.0),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 400.0,
+              mainAxisSpacing: 16.0,
+              crossAxisSpacing: 16.0,
+              childAspectRatio: 3 / 2,
+            ),
+            itemCount: events.length,
+            itemBuilder: (context, index) {
+              final event = events[index];
+              return Card(
+                elevation: 4.0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15.0),
+                ),
+                child: InkWell(
+                  onTap: () {
+                    // Navigate to event details, ensuring event.id is not null or empty
+                    if (event.id.isNotEmpty) {
+                      context.go('/attendee/event-details/${event.id}');
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Error: Event ID is missing.')),
+                      );
+                    }
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(15.0),
+                          ),
+                          child: (event.imageUrl != null && event.imageUrl!.isNotEmpty)
+                              ? Image.network(
+                                  event.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => Container(
+                                    color: Colors.grey[200],
+                                    child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                  ),
+                                )
+                              : Container(
+                                  color: Colors.grey[200],
+                                  child: const Icon(Icons.event, size: 50, color: Colors.grey),
                                 ),
-                                if (event.organizerName != null)
-                                  Text('Organizer: ${event.organizerName}'),
-                              ],
-                            ),
-                            trailing: const Icon(Icons.arrow_forward_ios),
-                            onTap: () {
-                              context.go(
-                                '/attendee/event-details/${event.id}',
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    );
-                  } else {
-                    // Web/Desktop view (GridView)
-                    return GridView.builder(
-                      padding: const EdgeInsets.all(16.0),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2, // Two columns for wider screens
-                        crossAxisSpacing: 16.0,
-                        mainAxisSpacing: 16.0,
-                        childAspectRatio:
-                            3 / 2, // Adjust aspect ratio as needed
+                        ),
                       ),
-                      itemCount: filteredEvents.length,
-                      itemBuilder: (context, index) {
-                        final event = filteredEvents[index];
-                        return Card(
-                          elevation: 4.0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.0),
-                          ),
-                          child: InkWell(
-                            onTap: () {
-                              context.go(
-                                '/attendee/event-details/${event.id}',
+                      Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              event.name,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height:
+4.0),
+                            Text(
+                              '${event.location} - ${event.startDate?.toLocal().toString().split(' ')[0] ?? 'TBA'}',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            if (user == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Please log in to register for events.'),
+                                  backgroundColor: Colors.red,
+                                ),
                               );
-                            },
-                            borderRadius: BorderRadius.circular(12.0),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  event.imageUrl != null
-                                      ? Image.network(
-                                          event.imageUrl!,
-                                          height: 100,
-                                          width: double.infinity,
-                                          fit: BoxFit.cover,
-                                        )
-                                      : Container(
-                                          height: 100,
-                                          width: double.infinity,
-                                          color: Colors.grey[200],
-                                          child: const Icon(
-                                            Icons.image,
-                                            size: 50,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                  Text(
-                                    event.title,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                              context.go('/attendee/login');
+                            } else {
+                              try {
+                                // Ensure event.id is valid before registering
+                                if (event.id.isNotEmpty) {
+                                  await registrationService.registerForEvent(
+                                      event.id, user.uid);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Successfully registered for ${event.name}!'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                } else {
+                                  throw Exception('Event ID is missing.');
+                                }
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error registering: $e'),
+                                    backgroundColor: Colors.red,
                                   ),
-                                  const SizedBox(height: 8.0),
-                                  Text(
-                                    event.description,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const Spacer(),
-                                  if (event.organizerName != null)
-                                    Text('Organizer: ${event.organizerName}'),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.calendar_today,
-                                        size: 16.0,
-                                      ),
-                                      const SizedBox(width: 4.0),
-                                      Text(
-                                        '${event.date.toLocal().toString().split(' ')[0]}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall,
-                                      ),
-                                      const SizedBox(width: 16.0),
-                                      Text(
-                                        'End Date: ${event.endDateTime != null ? event.endDateTime!.toLocal().toString().split(' ')[0] : 'Not specified'}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall,
-                                      ),
-                                      const Icon(
-                                        Icons.access_time,
-                                        size: 16.0,
-                                      ),
-                                      const SizedBox(width: 4.0),
-                                      Text(
-                                        event.time.format(context),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall,
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                                );
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.person_add_outlined),
+                          label: const Text('Register'),
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8.0),
                             ),
                           ),
-                        );
-                      },
-                    );
-                  }
-                },
+                        ),
+                      )
+                    ],
+                  ),
+                ),
               );
             },
-          ),
-        ),
-      ],
+          );
+        },
+      ),
     );
   }
 }

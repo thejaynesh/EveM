@@ -1,99 +1,116 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
+import 'dart:developer' as developer;
 
 class Event {
-  final String? id;
-  final String title;
+  final String id;
+  final String name;
   final String description;
-  final DateTime date;
-  final DateTime? endDateTime;
-  final TimeOfDay time;
-  final String? managerId;
-  final bool isPublished; // New field
-  final String? imageUrl; // New field
-  final String? organizerName; // New field
+  final String location;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final String? imageUrl;
+  final bool isPublished;
 
   Event({
-    this.id,
-    required this.title,
+    this.id = '',
+    required this.name,
     required this.description,
-    required this.date,
-    this.endDateTime,
-    required this.time,
-    this.managerId,
-    this.isPublished = false, // Default to not published
+    required this.location,
+    required this.startDate,
+    required this.endDate,
     this.imageUrl,
-    this.organizerName,
+    this.isPublished = false,
   });
-
-  // Convert a Event object into a Map object
-  Map<String, dynamic> toMap() {
-    return {
-      'title': title,
-      'description': description,
-      'date': Timestamp.fromDate(date),
-      'endDateTime': endDateTime != null ? Timestamp.fromDate(endDateTime!) : null,
-      'time':
-          '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
-      'managerId': managerId,
-      'isPublished': isPublished,
-      'imageUrl': imageUrl,
-      'organizerName': organizerName,
-    };
-  }
-
-  // Convert a Map object into a Event object
-  factory Event.fromMap(Map<String, dynamic> map, {String? id}) {
-    // Helper to parse time string safely
-    TimeOfDay parseTime(String timeStr) {
-      try {
-        final parts = timeStr.split(':');
-        return TimeOfDay(
-          hour: int.parse(parts[0]),
-          minute: int.parse(parts[1]),
-        );
-      } catch (e) {
-        return TimeOfDay.now(); // Default value
-      }
-    }
-
-    return Event(
-      id: id,
-      title: map['title'] ?? '',
-      description: map['description'] ?? '',
-      date: (map['date'] as Timestamp).toDate(),
-      endDateTime: map['endDateTime'] != null ? (map['endDateTime'] as Timestamp).toDate() : null,
-      time: parseTime(map['time'] ?? '00:00'),
-      managerId: map['managerId'] ?? '',
-      isPublished: map['isPublished'] ?? false,
-      imageUrl: map['imageUrl'] ?? null,
-      organizerName: map['organizerName'] ?? null,
-    );
-  }
 
   Event copyWith({
     String? id,
-    String? title,
+    String? name,
     String? description,
-    DateTime? date,
-    DateTime? endDateTime,
-    TimeOfDay? time,
-    String? managerId,
-    bool? isPublished,
+    String? location,
+    DateTime? startDate,
+    DateTime? endDate,
     String? imageUrl,
-    String? organizerName,
+    bool? isPublished,
   }) {
     return Event(
       id: id ?? this.id,
-      title: title ?? this.title,
+      name: name ?? this.name,
       description: description ?? this.description,
-      date: date ?? this.date,
-      endDateTime: endDateTime ?? this.endDateTime,
-      time: time ?? this.time,
-      managerId: managerId ?? this.managerId,
-      isPublished: isPublished ?? this.isPublished,
+      location: location ?? this.location,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
       imageUrl: imageUrl ?? this.imageUrl,
-      organizerName: organizerName ?? this.organizerName,
+      isPublished: isPublished ?? this.isPublished,
     );
+  }
+
+  /// A completely safe factory for creating an Event from a Firestore document.
+  /// This method will not throw a TypeError, even with malformed data.
+  factory Event.fromFirestore(DocumentSnapshot doc) {
+    // Ensure data is a map, even if the document is empty.
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+
+    // Helper function to safely get a value of a specific type.
+    T? safeGet<T>(String key) {
+      if (data.containsKey(key) && data[key] is T) {
+        return data[key] as T;
+      }
+      return null;
+    }
+
+    try {
+      final name = safeGet<String>('name') ?? 'No Name Provided';
+      final description = safeGet<String>('description') ?? 'No Description';
+      final location = safeGet<String>('location') ?? 'No Location';
+      final imageUrl = safeGet<String>('imageUrl');
+
+      final startDateTimestamp = safeGet<Timestamp>('startDate');
+      final startDate = startDateTimestamp?.toDate();
+
+      final endDateTimestamp = safeGet<Timestamp>('endDate');
+      final endDate = endDateTimestamp?.toDate();
+
+      final isPublished = safeGet<bool>('isPublished') ?? false;
+
+      return Event(
+        id: doc.id,
+        name: name,
+        description: description,
+        location: location,
+        startDate: startDate,
+        endDate: endDate,
+        imageUrl: imageUrl,
+        isPublished: isPublished,
+      );
+    } catch (e, stackTrace) {
+      developer.log(
+        '!!!!!!!! UNEXPECTED PARSING ERROR for doc ${doc.id} !!!!!!!!',
+        name: 'Event.fromFirestore',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      // Return a visible "error" event instead of crashing the app.
+      return Event(
+        id: doc.id,
+        name: 'Error: Invalid Event Data',
+        description: 'This event could not be loaded. Please check data format.',
+        location: 'Unknown',
+        startDate: null,
+        endDate: null,
+        isPublished: false, // Ensure it doesn't show up if there's an error.
+      );
+    }
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'name': name,
+      'description': description,
+      'location': location,
+      'startDate': startDate != null ? Timestamp.fromDate(startDate!) : null,
+      'endDate': endDate != null ? Timestamp.fromDate(endDate!) : null,
+      'imageUrl': imageUrl,
+      'isPublished': isPublished,
+    };
   }
 }

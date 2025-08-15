@@ -11,7 +11,8 @@ class TaskService {
         .snapshots()
         .map((snapshot) {
           return snapshot.docs.map((doc) {
-            return Task.fromMap(doc.data(), doc.id);
+            final data = doc.data();
+            return Task.fromMap(data, doc.id);
           }).toList();
         });
   }
